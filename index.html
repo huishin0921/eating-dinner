@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>今晚吃什麼？</title>
+<style>
+  :root {
+    --butter: #FFEFB5;
+    --butter-light: #FFF8DC;
+    --ink: #3A1D12;
+    --tomato: #DB3E26;
+    --tomato-dark: #A92B17;
+    --sun: #FFC93C;
+    --rim: clamp(16px, 4.6vw, 22px);
+    --size: max(270px, min(90vw, 430px, calc(100vh - 300px)));
+    --font: "Yuanti TC", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--butter);
+    color: var(--ink);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  /* ---------- Header ---------- */
+  .top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(26px, 7vw, 34px);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+  }
+  .sound {
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--butter-light);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .sound[aria-pressed="true"] { background: transparent; opacity: 0.7; }
+
+  /* ---------- Wheel ---------- */
+  .wheel-wrap {
+    position: relative;
+    width: var(--size);
+    height: var(--size);
+    margin-top: 12px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: 0 8px 0 rgba(58, 29, 18, 0.2);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #wheel {
+    position: absolute;
+    left: var(--rim);
+    top: var(--rim);
+    width: calc(100% - var(--rim) * 2);
+    height: calc(100% - var(--rim) * 2);
+    display: block;
+    border-radius: 50%;
+    will-change: transform;
+  }
+  .bulbs { position: absolute; inset: 0; pointer-events: none; }
+  .bulb {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4.5px;
+    border-radius: 50%;
+    background: #FFE08A;
+    box-shadow: 0 0 6px 1px rgba(255, 214, 102, 0.8);
+    transform: rotate(var(--a)) translateY(calc(var(--size) / -2 + var(--rim) / 2));
+  }
+  body.spinning .bulb { animation: chase 0.5s steps(1, end) infinite; }
+  body.spinning .bulb:nth-child(even) { animation-delay: -0.25s; }
+  @keyframes chase {
+    0%   { background: #FFE08A; box-shadow: 0 0 6px 1px rgba(255, 214, 102, 0.8); }
+    50%  { background: #7A4A2B; box-shadow: none; }
+  }
+
+  .pointer {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    width: 36px;
+    height: 46px;
+    margin-left: -18px;
+    z-index: 3;
+    transform-origin: 50% 15%;
+    filter: drop-shadow(0 3px 0 rgba(58, 29, 18, 0.35));
+    pointer-events: none;
+  }
+  .pointer svg { display: block; width: 100%; height: 100%; }
+
+  .hub {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 25%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 5px solid var(--ink);
+    background: var(--tomato);
+    color: #fff;
+    font: inherit;
+    font-weight: 900;
+    font-size: clamp(22px, 6vw, 30px);
+    cursor: pointer;
+    z-index: 2;
+    box-shadow: 0 4px 0 var(--tomato-dark), 0 0 0 4px var(--butter);
+    transition: box-shadow 0.08s;
+  }
+  .hub:active:not(:disabled) {
+    transform: translate(-50%, calc(-50% + 3px));
+    box-shadow: 0 1px 0 var(--tomato-dark), 0 0 0 4px var(--butter);
+  }
+  .hub:disabled { background: #9C8678; box-shadow: 0 0 0 4px var(--butter); cursor: default; }
+
+  /* ---------- Result stage ---------- */
+  .stage {
+    width: 100%;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .stage p { margin: 0; }
+  .hint { font-size: 16px; opacity: 0.75; line-height: 1.5; }
+  .pick-lead { font-size: 16px; font-weight: 700; opacity: 0.75; }
+  .pick-name {
+    font-size: clamp(36px, 11vw, 56px);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--tomato);
+    overflow-wrap: anywhere;
+    animation: pop 0.4s cubic-bezier(0.2, 1.6, 0.4, 1);
+  }
+  @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .btn-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 6px; }
+
+  .btn {
+    font: inherit;
+    font-weight: 800;
+    font-size: 18px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 16px;
+    border: 3px solid var(--ink);
+    color: var(--ink);
+    background: var(--butter-light);
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--ink);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  .btn.primary { background: var(--tomato); color: #fff; }
+  .btn.ghost { background: var(--sun); }
+  .btn.small { min-height: 40px; font-size: 15px; padding: 0 14px; border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
+  .btn:disabled { opacity: 0.45; cursor: default; box-shadow: 0 2px 0 var(--ink); }
+  .btn:disabled:active { transform: none; }
+
+  /* ---------- List panel ---------- */
+  .panel {
+    width: 100%;
+    background: var(--butter-light);
+    border: 3px solid var(--ink);
+    border-radius: 20px;
+    padding: 16px;
+  }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .panel h2 { margin: 0; font-size: 20px; font-weight: 900; }
+  .count { font-size: 14px; opacity: 0.7; }
+
+  .add { display: flex; gap: 8px; margin-top: 12px; }
+  .add input {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    background: #fff;
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+  }
+  .msg { min-height: 22px; margin: 6px 2px 0; font-size: 14px; opacity: 0.8; }
+
+  .chips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 5px 5px 13px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .chip .name { overflow-wrap: anywhere; }
+  .chip .tag { font-size: 12px; font-weight: 700; opacity: 0.8; }
+  .chip.off { background: transparent; border-style: dashed; }
+  .chip.off .name { text-decoration: line-through; opacity: 0.55; }
+  .chip .del {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 50%;
+    border: 0;
+    background: var(--butter);
+    color: var(--ink);
+    font: inherit;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .chip .del:hover { background: var(--sun); }
+  body.spinning .chip .del, body.spinning .add button { pointer-events: none; opacity: 0.4; }
+
+  .panel-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .hub:focus-visible { outline-color: #fff; outline-offset: -10px; }
+
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.spinning .bulb { animation: none; }
+    .pick-name { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>今晚吃什麼？</h1>
+    <button id="sound" class="sound" type="button" aria-pressed="false">🔊 音效開</button>
+  </header>
+
+  <div class="wheel-wrap" id="wrap">
+    <div class="bulbs" id="bulbs" aria-hidden="true"></div>
+    <canvas id="wheel" role="img" aria-label="餐點轉盤"></canvas>
+    <div class="pointer" id="pointer" aria-hidden="true">
+      <svg viewBox="0 0 36 46">
+        <path d="M18 45 L3 14 A16 16 0 1 1 33 14 Z" fill="#DB3E26" stroke="#3A1D12" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="18" cy="14" r="5" fill="#FFEFB5"/>
+      </svg>
+    </div>
+    <button id="hub" class="hub" type="button" aria-label="開始轉">轉</button>
+  </div>
+
+  <section id="stage" class="stage" aria-live="polite"></section>
+
+  <section class="panel" aria-labelledby="list-title">
+    <div class="panel-head">
+      <h2 id="list-title">餐點清單</h2>
+      <span class="count" id="count"></span>
+    </div>
+    <form class="add" id="addForm" autocomplete="off">
+      <label for="addInput" style="position:absolute;left:-9999px">新增餐點</label>
+      <input id="addInput" type="text" maxlength="10" placeholder="新增餐點，例如：鹹酥雞" enterkeyhint="done">
+      <button class="btn small" type="submit">新增</button>
+    </form>
+    <p class="msg" id="msg" role="status"></p>
+    <ul class="chips" id="chips"></ul>
+    <div class="panel-actions">
+      <button class="btn small" id="resetBtn" type="button">重置</button>
+      <button class="btn small" id="defaultsBtn" type="button">恢復預設清單</button>
+    </div>
+  </section>
+</main>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  'use strict';
+
+  const KEY = 'dinner-wheel-v1';
+  const DEFAULTS = ['滷肉飯', '牛肉麵', '火鍋', '壽司', '便當', '水餃', '炒飯', '義大利麵', '拉麵', '麻辣燙', '雞肉飯', '咖哩飯'];
+  const MAX_ITEMS = 24;
+  const MAX_LEN = 10;
+  const TAU = Math.PI * 2;
+  const FONT = '"Yuanti TC","PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",sans-serif';
+  const PALETTE = [
+    { bg: '#DB3E26', fg: '#FFFFFF' },
+    { bg: '#FFC93C', fg: '#3A1D12' },
+    { bg: '#F59A23', fg: '#3A1D12' },
+    { bg: '#3F8A4F', fg: '#FFFFFF' },
+    { bg: '#F28B82', fg: '#3A1D12' }
+  ];
+
+  const $ = id => document.getElementById(id);
+  const wheel = $('wheel'), ctx = wheel.getContext('2d');
+  const wrap = $('wrap'), pointer = $('pointer'), hub = $('hub'), stage = $('stage');
+  const chipsEl = $('chips'), countEl = $('count'), msgEl = $('msg');
+  const form = $('addForm'), input = $('addInput');
+  const soundBtn = $('sound'), resetBtn = $('resetBtn'), defaultsBtn = $('defaultsBtn');
+
+  let items = [];
+  let muted = false;
+  const excluded = new Set();   // 只在這次開啟期間有效，重新整理就恢復
+  let list = [];                // 目前轉盤上的餐點（items 扣掉 excluded）
+  let theta = 0;                // 轉盤目前旋轉角度（弧度，順時針）
+  let state = 'idle';           // idle | spinning | result | decided
+  let current = null;
+  let note = '';
+  let lastIdx = -1;
+
+  /* ---------- 儲存 ---------- */
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if (d && Array.isArray(d.items)) {
+        const cleaned = d.items
+          .filter(s => typeof s === 'string' && s.trim())
+          .map(s => s.trim().slice(0, MAX_LEN));
+        items = [...new Set(cleaned)].slice(0, MAX_ITEMS);
+        muted = !!d.muted;
+        return;
+      }
+    } catch (e) { /* 讀不到就用預設 */ }
+    items = DEFAULTS.slice();
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ items, muted })); } catch (e) { /* 無法儲存時忽略 */ }
+  }
+
+  /* ---------- 小工具 ---------- */
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    if (props) {
+      for (const [k, v] of Object.entries(props)) {
+        if (k === 'class') el.className = v;
+        else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v);
+      }
+    }
+    for (const kid of kids.flat()) {
+      if (kid == null) continue;
+      el.append(kid.nodeType ? kid : document.createTextNode(kid));
+    }
+    return el;
+  }
+  const mod = (a, m) => ((a % m) + m) % m;
+  function say(text) { msgEl.textContent = text; }
+  function refresh() { list = items.filter(x => !excluded.has(x)); }
+
+  function colorFor(i, n) {
+    let c = i % PALETTE.length;
+    if (n > 1 && i === n - 1 && c === 0) c = 2; // 避免最後一格和第一格同色
+    return PALETTE[c];
+  }
+  function indexAt(th, n) {
+    const a = mod(-th, TAU);
+    return Math.min(n - 1, Math.floor(a / (TAU / n)));
+  }
+
+  /* ---------- 音效 ---------- */
+  let ac = null, lastTick = 0;
+  function ensureCtx() {
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function blip(c, freq, start, dur, type, vol) {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(vol, start + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g).connect(c.destination);
+    o.start(start);
+    o.stop(start + dur + 0.02);
+  }
+  const sfx = {
+    tick() {
+      if (muted) return;
+      const c = ensureCtx(); if (!c) return;
+      const t = c.currentTime;
+      if (t - lastTick < 0.03) return;
+      lastTick = t;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(1300, t);
+      o.frequency.exponentialRampToValueAtTime(520, t + 0.035);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      o.connect(g).connect(c.destination);
+      o.start(t);
+      o.stop(t + 0.06);
+    },
+    ding() {
+      if (muted) return;
+      const c = ensureCtx(); if (!c) return;
+      const t = c.currentTime;
+      blip(c, 784, t, 0.3, 'sine', 0.2);
+      blip(c, 1175, t + 0.11, 0.45, 'sine', 0.2);
+    },
+    fanfare() {
+      if (muted) return;
+      const c = ensureCtx(); if (!c) return;
+      const t = c.currentTime;
+      [523, 659, 784, 1047].forEach((f, i) => blip(c, f, t + i * 0.09, 0.28, 'triangle', 0.18));
+      blip(c, 1047, t + 0.4, 0.6, 'triangle', 0.16);
+    }
+  };
+
+  /* ---------- 轉盤繪製 ---------- */
+  function drawWheel() {
+    const css = wheel.clientWidth;
+    if (!css) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const px = Math.round(css * dpr);
+    if (wheel.width !== px) { wheel.width = px; wheel.height = px; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, css, css);
+
+    const R = css / 2, cx = R, cy = R, n = list.length, scale = R / 200;
+
+    if (n === 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, TAU);
+      ctx.fillStyle = '#FFF8DC';
+      ctx.fill();
+      ctx.fillStyle = '#3A1D12';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${20 * scale}px ${FONT}`;
+      ctx.fillText(items.length ? '今天的選項都排光了' : '先新增幾個餐點吧', cx, cy - R * 0.45);
+      return;
+    }
+
+    const seg = TAU / n;
+    for (let i = 0; i < n; i++) {
+      const start = -Math.PI / 2 + i * seg;
+      const col = colorFor(i, n);
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, start, start + seg);
+      ctx.closePath();
+      ctx.fillStyle = col.bg;
+      ctx.fill();
+      if (n > 1) {
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#FFEFB5';
+        ctx.stroke();
+      }
+
+      // 文字
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(start + seg / 2);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = col.fg;
+
+      const arcW = n > 1 ? 2 * R * 0.8 * Math.sin(Math.min(seg, Math.PI) / 2) : R;
+      const avail = R * 0.56;
+      let fs = Math.max(11, Math.min(26 * scale, arcW * 0.6));
+      let label = list[i];
+      ctx.font = `800 ${fs}px ${FONT}`;
+      let w = ctx.measureText(label).width;
+      while (w > avail && fs > 12) {
+        fs -= 1;
+        ctx.font = `800 ${fs}px ${FONT}`;
+        w = ctx.measureText(label).width;
+      }
+      if (w > avail) {
+        while (label.length > 1 && ctx.measureText(label + '…').width > avail) label = label.slice(0, -1);
+        label += '…';
+      }
+      ctx.fillText(label, R - 16 * scale, 0);
+      ctx.restore();
+    }
+  }
+
+  /* ---------- 指針彈動 ---------- */
+  let kick = 0, kickRaf = 0;
+  function setKick(v) {
+    kick = v;
+    if (!kickRaf) kickRaf = requestAnimationFrame(kickStep);
+  }
+  function kickStep() {
+    kick *= 0.8;
+    if (Math.abs(kick) < 0.4) {
+      kick = 0;
+      pointer.style.transform = '';
+      kickRaf = 0;
+      return;
+    }
+    pointer.style.transform = `rotate(${kick}deg)`;
+    kickRaf = requestAnimationFrame(kickStep);
+  }
+
+  function applyTheta() {
+    wheel.style.transform = `rotate(${theta}rad)`;
+    const n = list.length;
+    if (n < 2) return;
+    const idx = indexAt(theta, n);
+    if (idx !== lastIdx) {
+      lastIdx = idx;
+      sfx.tick();
+      setKick(-22);
+    }
+  }
+
+  /* ---------- 狀態與畫面 ---------- */
+  function setState(s) {
+    state = s;
+    document.body.classList.toggle('spinning', s === 'spinning');
+    hub.disabled = s === 'spinning' || list.length === 0;
+    renderStage();
+  }
+
+  function renderStage() {
+    stage.replaceChildren();
+
+    if (state === 'spinning') {
+      stage.append(h('p', { class: 'hint' }, '轉轉轉…'));
+      return;
+    }
+    if (state === 'result') {
+      stage.append(
+        h('p', { class: 'pick-lead' }, '今晚輪到'),
+        h('p', { class: 'pick-name' }, current),
+        note ? h('p', { class: 'hint' }, note) : null,
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn primary', type: 'button', onclick: accept }, '好！吃這個'),
+          h('button', { class: 'btn ghost', type: 'button', onclick: skip }, '今天沒開，換一家')
+        )
+      );
+      return;
+    }
+    if (state === 'decided') {
+      stage.append(
+        h('p', { class: 'pick-lead' }, '就決定吃'),
+        h('p', { class: 'pick-name' }, current),
+        h('p', { class: 'hint' }, '吃飽喝足，明天再轉！'),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn small', type: 'button', onclick: () => { current = null; spin(); } }, '再轉一次')
+        )
+      );
+      return;
+    }
+
+    // idle
+    if (items.length === 0) {
+      stage.append(h('p', { class: 'hint' }, '清單是空的，先在下面新增幾個餐點。'));
+    } else if (list.length === 0) {
+      stage.append(
+        h('p', { class: 'hint' }, '今天的選項都排光了。'),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn ghost', type: 'button', onclick: doReset }, '重置，全部放回來')
+        )
+      );
+    } else if (list.length === 1) {
+      stage.append(h('p', { class: 'hint' }, `只剩「${list[0]}」，按「轉」就會直接決定。`));
+    } else {
+      stage.append(h('p', { class: 'hint' }, '按中間的「轉」，或在轉盤上甩一下。'));
+    }
+  }
+
+  function renderList() {
+    chipsEl.replaceChildren();
+    items.forEach(name => {
+      const off = excluded.has(name);
+      chipsEl.append(
+        h('li', { class: 'chip' + (off ? ' off' : '') },
+          h('span', { class: 'name' }, name),
+          off ? h('span', { class: 'tag' }, '今天沒開') : null,
+          h('button', { class: 'del', type: 'button', 'data-name': name, 'aria-label': `刪除${name}` }, '×')
+        )
+      );
+    });
+    countEl.textContent = `${items.length} 個` + (excluded.size ? `，今天沒開 ${excluded.size} 個` : '');
+    resetBtn.disabled = excluded.size === 0;
+  }
+
+  // 清單內容改變後，更新所有相關畫面
+  function changed() {
+    refresh();
+    drawWheel();
+    renderList();
+    current = null;
+    note = '';
+    setState('idle');
+  }
+
+  /* ---------- 轉動流程 ---------- */
+  function showResult(name, n) {
+    current = name;
+    note = n || '';
+    setState('result');
+    sfx.ding();
+  }
+
+  function spin() {
+    if (state === 'spinning' || list.length === 0) return;
+    ensureCtx();
+    note = '';
+    if (list.length === 1) {
+      showResult(list[0], '只剩這一家了');
+      return;
+    }
+
+    const n = list.length, seg = TAU / n;
+    const win = Math.floor(Math.random() * n);
+    const frac = 0.15 + Math.random() * 0.7;                 // 避開格子邊緣，指針不會壓線
+    const targetMod = mod(-(win + frac) * seg, TAU);
+    const delta = mod(targetMod - mod(theta, TAU), TAU);
+    const total = delta + (5 + Math.floor(Math.random() * 3)) * TAU;
+    const from = theta;
+    const dur = 4600 + Math.random() * 900;
+    const t0 = performance.now();
+
+    lastIdx = indexAt(theta, n);
+    setState('spinning');
+
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      theta = from + total * e;
+      applyTheta();
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        theta = mod(theta, TAU);
+        wheel.style.transform = `rotate(${theta}rad)`;
+        showResult(list[win]);
+      }
+    };
+    requestAnimationFrame(step);
+  }
+
+  function accept() {
+    state = 'decided';
+    setState('decided');
+    sfx.fanfare();
+    confetti();
+  }
+
+  function skip() {
+    if (!current) return;
+    excluded.add(current);
+    current = null;
+    note = '';
+    refresh();
+    drawWheel();
+    renderList();
+    if (list.length === 0) { setState('idle'); return; }
+    if (list.length === 1) { showResult(list[0], '只剩這一家了'); return; }
+    spin();
+  }
+
+  function doReset() {
+    if (state === 'spinning') return;
+    excluded.clear();
+    changed();
+    say('已把今天沒開的餐點放回轉盤。');
+  }
+
+  /* ---------- 在轉盤上甩動 ---------- */
+  let drag = null;
+  wrap.addEventListener('pointerdown', e => {
+    if (state === 'spinning' || list.length < 2) return;
+    if (e.target.closest('#hub')) return;
+    ensureCtx();
+    const r = wrap.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    drag = {
+      id: e.pointerId, cx, cy,
+      last: Math.atan2(e.clientY - cy, e.clientX - cx),
+      moved: 0, cum: 0, reset: false,
+      samples: [{ t: e.timeStamp, a: 0 }],
+      radius: r.width / 2
+    };
+    lastIdx = indexAt(theta, list.length);
+    try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+  });
+  wrap.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const a = Math.atan2(e.clientY - drag.cy, e.clientX - drag.cx);
+    let d = a - drag.last;
+    if (d > Math.PI) d -= TAU;
+    if (d < -Math.PI) d += TAU;
+    drag.last = a;
+    drag.moved += Math.abs(d);
+    drag.cum += d;
+    theta += d;
+    drag.samples.push({ t: e.timeStamp, a: drag.cum });
+    if (drag.samples.length > 12) drag.samples.shift();
+    if (!drag.reset && drag.moved * drag.radius > 8 && (state === 'result' || state === 'decided')) {
+      drag.reset = true;
+      current = null;
+      note = '';
+      setState('idle');
+    }
+    applyTheta();
+  });
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const s = drag.samples;
+    drag = null;
+    if (cancelled || s.length < 2) return;
+    const first = s.find(p => e.timeStamp - p.t <= 120) || s[s.length - 2];
+    const last = s[s.length - 1];
+    const dt = (last.t - first.t) / 1000;
+    if (dt > 0.016 && Math.abs((last.a - first.a) / dt) > 3.5) spin();
+  }
+  wrap.addEventListener('pointerup', e => endDrag(e, false));
+  wrap.addEventListener('pointercancel', e => endDrag(e, true));
+
+  /* ---------- 慶祝動畫 ---------- */
+  const cv = $('confetti'), cc = cv.getContext('2d');
+  let confettiId = 0;
+  function confetti() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = ++confettiId;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = window.innerWidth, H = window.innerHeight;
+    cv.width = W * dpr;
+    cv.height = H * dpr;
+    cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = wrap.getBoundingClientRect();
+    const ox = r.left + r.width / 2, oy = Math.min(H * 0.6, r.top + r.height * 0.5);
+    const parts = Array.from({ length: 130 }, () => ({
+      x: ox + (Math.random() - 0.5) * 80,
+      y: oy,
+      vx: (Math.random() - 0.5) * 14,
+      vy: -Math.random() * 14 - 4,
+      w: 6 + Math.random() * 6,
+      h: 8 + Math.random() * 8,
+      r: Math.random() * TAU,
+      vr: (Math.random() - 0.5) * 0.4,
+      c: PALETTE[Math.floor(Math.random() * PALETTE.length)].bg
+    }));
+    const start = performance.now();
+    let last = start;
+    const frame = now => {
+      if (id !== confettiId) return;
+      const dt = Math.min(32, now - last) / 16.7;
+      last = now;
+      cc.clearRect(0, 0, W, H);
+      let alive = 0;
+      for (const p of parts) {
+        p.vy += 0.35 * dt;
+        p.vx *= 0.995;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.r += p.vr * dt;
+        if (p.y < H + 30) {
+          alive++;
+          cc.save();
+          cc.translate(p.x, p.y);
+          cc.rotate(p.r);
+          cc.fillStyle = p.c;
+          cc.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          cc.restore();
+        }
+      }
+      if (alive && now - start < 4000) requestAnimationFrame(frame);
+      else cc.clearRect(0, 0, W, H);
+    };
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- 事件 ---------- */
+  hub.addEventListener('click', spin);
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (state === 'spinning') return;
+    const v = input.value.trim().replace(/\s+/g, ' ');
+    if (!v) { say('請先輸入餐點名稱。'); return; }
+    if (items.includes(v)) { say(`「${v}」已經在清單裡了。`); return; }
+    if (items.length >= MAX_ITEMS) { say(`最多 ${MAX_ITEMS} 個餐點，先刪掉幾個再新增。`); return; }
+    items.push(v);
+    input.value = '';
+    save();
+    changed();
+    say(`已新增「${v}」。`);
+    input.focus();
+  });
+
+  chipsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.del');
+    if (!btn || state === 'spinning') return;
+    const name = btn.getAttribute('data-name');
+    items = items.filter(x => x !== name);
+    excluded.delete(name);
+    save();
+    changed();
+    say(`已刪除「${name}」。`);
+  });
+
+  resetBtn.addEventListener('click', doReset);
+
+  defaultsBtn.addEventListener('click', () => {
+    if (state === 'spinning') return;
+    if (!window.confirm('要恢復成預設清單嗎？你新增的餐點會被移除。')) return;
+    items = DEFAULTS.slice();
+    excluded.clear();
+    save();
+    changed();
+    say('已恢復成預設清單。');
+  });
+
+  function updateSoundBtn() {
+    soundBtn.setAttribute('aria-pressed', String(muted));
+    soundBtn.textContent = muted ? '🔇 已靜音' : '🔊 音效開';
+  }
+  soundBtn.addEventListener('click', () => {
+    muted = !muted;
+    save();
+    updateSoundBtn();
+    if (!muted) { ensureCtx(); sfx.tick(); }
+  });
+
+  /* ---------- 初始化 ---------- */
+  const bulbs = $('bulbs');
+  for (let i = 0; i < 24; i++) {
+    const b = document.createElement('span');
+    b.className = 'bulb';
+    b.style.setProperty('--a', `${i * 15}deg`);
+    bulbs.append(b);
+  }
+
+  load();
+  refresh();
+  updateSoundBtn();
+  renderList();
+  setState('idle');
+  requestAnimationFrame(drawWheel);
+  if (window.ResizeObserver) new ResizeObserver(drawWheel).observe(wheel);
+  else window.addEventListener('resize', drawWheel);
+})();
+</script>
+</body>
+</html>
